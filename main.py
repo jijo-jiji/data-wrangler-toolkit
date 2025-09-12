@@ -20,9 +20,13 @@ class App(tk.Tk):
 
         self.load_button = ttk.Button(top_frame, text="Load CSV/Excel", command=self.load_file)
         self.load_button.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # --- NEW: Export Button ---
+        self.export_button = ttk.Button(top_frame, text="Export to CSV", command=self.export_to_csv)
+        self.export_button.pack(side=tk.LEFT)
 
         self.file_label = ttk.Label(top_frame, text="No file loaded.")
-        self.file_label.pack(side=tk.LEFT)
+        self.file_label.pack(side=tk.LEFT, padx=10)
         
         action_frame = ttk.LabelFrame(main_frame, text="Actions", padding="10")
         action_frame.pack(fill=tk.X, pady=10)
@@ -30,7 +34,6 @@ class App(tk.Tk):
         self.remove_duplicates_button = ttk.Button(action_frame, text="Remove Duplicates", command=self.remove_duplicates)
         self.remove_duplicates_button.pack(side=tk.LEFT, padx=(0, 20))
 
-        # --- Missing Value Controls ---
         missing_values_label = ttk.Label(action_frame, text="Handle Missing Values in Column:")
         missing_values_label.pack(side=tk.LEFT, padx=(0, 5))
 
@@ -47,7 +50,6 @@ class App(tk.Tk):
 
         self.apply_action_button = ttk.Button(action_frame, text="Apply", command=self.handle_missing_values)
         self.apply_action_button.pack(side=tk.LEFT)
-
 
         bottom_frame = ttk.Frame(main_frame)
         bottom_frame.pack(fill=tk.BOTH, expand=True, pady=10)
@@ -84,12 +86,10 @@ class App(tk.Tk):
             self.tree.heading(column, text=column)
             self.tree.column(column, width=100)
         
-        # Replace NaN with a display-friendly string like "NULL"
         df_display = df.replace(np.nan, 'NULL')
         for index, row in df_display.iterrows():
             self.tree.insert("", "end", values=list(row))
             
-        # Update column selector
         self.column_selector['values'] = list(df.columns)
 
     def remove_duplicates(self):
@@ -111,13 +111,9 @@ class App(tk.Tk):
             self.custom_value_entry.config(state="disabled")
 
     def handle_missing_values(self):
-        if self.df is None:
-            messagebox.showwarning("Warning", "No data loaded.")
-            return
-
+        if self.df is None: return
         column = self.column_selector.get()
         action = self.action_selector.get()
-
         if not column or not action:
             messagebox.showwarning("Warning", "Please select a column and an action.")
             return
@@ -125,31 +121,40 @@ class App(tk.Tk):
         try:
             if action == "Drop Rows":
                 self.df.dropna(subset=[column], inplace=True)
-            elif action == "Fill with Mean":
-                if pd.api.types.is_numeric_dtype(self.df[column]):
-                    fill_value = self.df[column].mean()
-                    self.df[column].fillna(fill_value, inplace=True)
-                else:
-                    messagebox.showerror("Error", "Mean can only be calculated for numeric columns.")
+            elif action in ["Fill with Mean", "Fill with Median"]:
+                if not pd.api.types.is_numeric_dtype(self.df[column]):
+                    messagebox.showerror("Error", f"{action} can only be used on numeric columns.")
                     return
-            elif action == "Fill with Median":
-                if pd.api.types.is_numeric_dtype(self.df[column]):
-                    fill_value = self.df[column].median()
-                    self.df[column].fillna(fill_value, inplace=True)
-                else:
-                    messagebox.showerror("Error", "Median can only be calculated for numeric columns.")
-                    return
+                fill_value = self.df[column].mean() if action == "Fill with Mean" else self.df[column].median()
+                self.df[column].fillna(fill_value, inplace=True)
             elif action == "Fill with Mode":
-                fill_value = self.df[column].mode()[0]
-                self.df[column].fillna(fill_value, inplace=True)
+                self.df[column].fillna(self.df[column].mode()[0], inplace=True)
             elif action == "Fill with Value:":
-                fill_value = self.custom_value_entry.get()
-                self.df[column].fillna(fill_value, inplace=True)
+                self.df[column].fillna(self.custom_value_entry.get(), inplace=True)
                 
             messagebox.showinfo("Success", f"Action '{action}' applied to column '{column}'.")
             self.update_treeview(self.df)
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
+
+    # --- NEW: Export function ---
+    def export_to_csv(self):
+        if self.df is None:
+            messagebox.showwarning("Warning", "No data to export.")
+            return
+
+        try:
+            filepath = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if not filepath:
+                return
+
+            self.df.to_csv(filepath, index=False)
+            messagebox.showinfo("Success", f"Data successfully exported to:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export file: {e}")
 
 if __name__ == "__main__":
     app = App()
