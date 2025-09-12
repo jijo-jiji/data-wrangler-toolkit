@@ -1,78 +1,122 @@
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+# Change the primary import from tkinter to ttkbootstrap
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from tkinter import filedialog, messagebox
 import pandas as pd
 import numpy as np
-
-# --- Matplotlib imports ---
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-class App(tk.Tk):
+# Change the class to inherit from ttk.Window
+class App(ttk.Window):
     def __init__(self):
-        super().__init__()
+        # Initialize with a theme, e.g., "superhero" (dark) or "litera" (light)
+        super().__init__(themename="superhero")
 
         self.df = None
-
         self.title("Data Wrangler's Toolkit")
-        self.geometry("1000x700") # Increased window size for new widgets
+        self.geometry("1000x700")
 
         main_frame = ttk.Frame(self, padding="10")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.pack(fill=BOTH, expand=True)
 
         top_frame = ttk.Frame(main_frame)
-        top_frame.pack(fill=tk.X, pady=5)
+        top_frame.pack(fill=X, pady=5)
 
-        self.load_button = ttk.Button(top_frame, text="Load CSV/Excel", command=self.load_file)
-        self.load_button.pack(side=tk.LEFT, padx=(0, 10))
+        self.load_button = ttk.Button(top_frame, text="Load CSV/Excel", command=self.load_file, bootstyle="primary")
+        self.load_button.pack(side=LEFT, padx=(0, 10))
         
-        self.export_button = ttk.Button(top_frame, text="Export to CSV", command=self.export_to_csv)
-        self.export_button.pack(side=tk.LEFT)
+        self.export_button = ttk.Button(top_frame, text="Export to CSV", command=self.export_to_csv, bootstyle="success")
+        self.export_button.pack(side=LEFT)
 
         self.file_label = ttk.Label(top_frame, text="No file loaded.")
-        self.file_label.pack(side=tk.LEFT, padx=10)
+        self.file_label.pack(side=LEFT, padx=10)
         
         action_frame = ttk.LabelFrame(main_frame, text="Actions", padding="10")
-        action_frame.pack(fill=tk.X, pady=10)
+        action_frame.pack(fill=X, pady=10)
         
-        self.remove_duplicates_button = ttk.Button(action_frame, text="Remove Duplicates", command=self.remove_duplicates)
-        self.remove_duplicates_button.pack(side=tk.LEFT, padx=(0, 10))
+        self.remove_duplicates_button = ttk.Button(action_frame, text="Remove Duplicates", command=self.remove_duplicates, bootstyle="danger-outline")
+        self.remove_duplicates_button.pack(side=LEFT, padx=(0, 10))
 
-        # --- Missing Value Controls ---
-        ttk.Label(action_frame, text="Handle Missing Values in:").pack(side=tk.LEFT, padx=(10, 5))
+        ttk.Label(action_frame, text="Handle Missing Values in:").pack(side=LEFT, padx=(10, 5))
         self.column_selector = ttk.Combobox(action_frame, state="readonly", width=15)
-        self.column_selector.pack(side=tk.LEFT, padx=(0, 5))
+        self.column_selector.pack(side=LEFT, padx=(0, 5))
         self.action_selector = ttk.Combobox(action_frame, state="readonly", width=18,
                                             values=["Drop Rows", "Fill with Mean", "Fill with Median", "Fill with Mode", "Fill with Value:"])
-        self.action_selector.pack(side=tk.LEFT, padx=(0, 5))
+        self.action_selector.pack(side=LEFT, padx=(0, 5))
         self.action_selector.bind("<<ComboboxSelected>>", self.toggle_custom_entry)
         self.custom_value_entry = ttk.Entry(action_frame, width=10, state="disabled")
-        self.custom_value_entry.pack(side=tk.LEFT, padx=(0, 5))
-        self.apply_action_button = ttk.Button(action_frame, text="Apply", command=self.handle_missing_values)
-        self.apply_action_button.pack(side=tk.LEFT)
+        self.custom_value_entry.pack(side=LEFT, padx=(0, 5))
+        self.apply_action_button = ttk.Button(action_frame, text="Apply", command=self.handle_missing_values, bootstyle="info")
+        self.apply_action_button.pack(side=LEFT)
         
-        # --- Visualization Controls ---
-        ttk.Separator(action_frame, orient='vertical').pack(side=tk.LEFT, padx=15, fill='y')
-        ttk.Label(action_frame, text="Generate Plot:").pack(side=tk.LEFT)
+        ttk.Separator(action_frame, orient='vertical').pack(side=LEFT, padx=15, fill='y')
+        ttk.Label(action_frame, text="Generate Plot:").pack(side=LEFT)
         self.plot_type_selector = ttk.Combobox(action_frame, state="readonly", width=20,
                                                values=["Histogram (Numeric)", "Bar Chart (Categorical)"])
-        self.plot_type_selector.pack(side=tk.LEFT, padx=5)
-        self.plot_button = ttk.Button(action_frame, text="Generate Plot", command=self.generate_plot)
-        self.plot_button.pack(side=tk.LEFT)
+        self.plot_type_selector.pack(side=LEFT, padx=5)
+        self.plot_button = ttk.Button(action_frame, text="Generate Plot", command=self.generate_plot, bootstyle="info")
+        self.plot_button.pack(side=LEFT)
 
         bottom_frame = ttk.Frame(main_frame)
-        bottom_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        bottom_frame.pack(fill=BOTH, expand=True, pady=10)
 
-        self.tree = ttk.Treeview(bottom_frame, show='headings')
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.tree = ttk.Treeview(bottom_frame, show='headings', bootstyle="primary")
+        self.tree.pack(side=LEFT, fill=BOTH, expand=True)
         
-        vsb = ttk.Scrollbar(bottom_frame, orient="vertical", command=self.tree.yview)
+        vsb = ttk.Scrollbar(bottom_frame, orient="vertical", command=self.tree.yview, bootstyle="round")
         vsb.pack(side='right', fill='y')
         self.tree.configure(yscrollcommand=vsb.set)
-        hsb = ttk.Scrollbar(bottom_frame, orient="horizontal", command=self.tree.xview)
+        hsb = ttk.Scrollbar(bottom_frame, orient="horizontal", command=self.tree.xview, bootstyle="round")
         hsb.pack(side='bottom', fill='x')
         self.tree.configure(xscrollcommand=hsb.set)
 
-    # ... (load_file, update_treeview, remove_duplicates, etc. methods are unchanged) ...
+    def generate_plot(self):
+        if self.df is None:
+            messagebox.showwarning("Warning", "No data loaded.")
+            return
+
+        column = self.column_selector.get()
+        plot_type = self.plot_type_selector.get()
+
+        if not column or not plot_type:
+            messagebox.showwarning("Warning", "Please select a column and a plot type.")
+            return
+            
+        # Use ttk.Toplevel for a themed window
+        plot_window = ttk.Toplevel(self)
+        plot_window.title(f"Plot for {column}")
+        plot_window.geometry("800x600")
+
+        fig = Figure(figsize=(7, 5), dpi=100)
+        ax = fig.add_subplot(111)
+
+        try:
+            if plot_type == "Histogram (Numeric)":
+                if not pd.api.types.is_numeric_dtype(self.df[column]):
+                    messagebox.showerror("Error", "Histogram requires a numeric column.")
+                    plot_window.destroy()
+                    return
+                self.df[column].dropna().plot(kind='hist', ax=ax, bins=30, title=f'Histogram of {column}')
+                ax.set_xlabel(column)
+                ax.set_ylabel("Frequency")
+
+            elif plot_type == "Bar Chart (Categorical)":
+                value_counts = self.df[column].value_counts().nlargest(20)
+                value_counts.plot(kind='bar', ax=ax, title=f'Bar Chart of {column}')
+                ax.set_xlabel(column)
+                ax.set_ylabel("Count")
+                fig.tight_layout()
+
+            canvas = FigureCanvasTkAgg(fig, master=plot_window)
+            canvas.draw()
+            canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=True)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not generate plot: {e}")
+            plot_window.destroy()
+    
+    # ... (all other methods: load_file, update_treeview, etc. remain exactly the same) ...
     def load_file(self):
         filepath = filedialog.askopenfilename(
             filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx *.xls")]
@@ -162,53 +206,6 @@ class App(tk.Tk):
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export file: {e}")
 
-    def generate_plot(self):
-        if self.df is None:
-            messagebox.showwarning("Warning", "No data loaded.")
-            return
-
-        column = self.column_selector.get()
-        plot_type = self.plot_type_selector.get()
-
-        if not column or not plot_type:
-            messagebox.showwarning("Warning", "Please select a column and a plot type.")
-            return
-            
-        # --- Create a new window for the plot ---
-        plot_window = tk.Toplevel(self)
-        plot_window.title(f"Plot for {column}")
-        plot_window.geometry("800x600")
-
-        fig = Figure(figsize=(7, 5), dpi=100)
-        ax = fig.add_subplot(111)
-
-        try:
-            if plot_type == "Histogram (Numeric)":
-                if not pd.api.types.is_numeric_dtype(self.df[column]):
-                    messagebox.showerror("Error", "Histogram requires a numeric column.")
-                    plot_window.destroy()
-                    return
-                # Drop NA values for plotting
-                self.df[column].dropna().plot(kind='hist', ax=ax, bins=30, title=f'Histogram of {column}')
-                ax.set_xlabel(column)
-                ax.set_ylabel("Frequency")
-
-            elif plot_type == "Bar Chart (Categorical)":
-                # Get top 20 most frequent categories to avoid clutter
-                value_counts = self.df[column].value_counts().nlargest(20)
-                value_counts.plot(kind='bar', ax=ax, title=f'Bar Chart of {column}')
-                ax.set_xlabel(column)
-                ax.set_ylabel("Count")
-                fig.tight_layout() # Adjust layout to prevent labels overlapping
-
-            # --- Embed the plot in the Tkinter window ---
-            canvas = FigureCanvasTkAgg(fig, master=plot_window)
-            canvas.draw()
-            canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not generate plot: {e}")
-            plot_window.destroy()
 
 if __name__ == "__main__":
     app = App()
