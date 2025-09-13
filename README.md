@@ -28,15 +28,17 @@ Here is the application in action using the "superhero" dark theme.
 
 **Main Application Window**
 
-`![Main Window](./screenshots/main_window.png)`
-`![Main Window](./screenshots/main_window_loaded.png)`
+![Main Window](./screenshots/main_window.png)
+
+![Main Window](./screenshots/main_window_loaded.png)
 
 **Plot Generation**
-`![Plot Window](./screenshots/plot_window.png)`
+
+![Plot Window](./screenshots/plot_window.png)
 
 **Statistics Summary**
 
-`![Statistics Window]./screenshots/stats_window.png)`
+![Statistics Window](./screenshots/stats_window.png)
 
 ---
 
