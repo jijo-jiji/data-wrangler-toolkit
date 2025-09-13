@@ -1,6 +1,6 @@
 # Data Wrangler's Toolkit - Now with Descriptive Statistics
 # Dependencies: ttkbootstrap, pandas, numpy, matplotlib, openpyxl
-
+import data_logic
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import filedialog, messagebox
@@ -195,13 +195,20 @@ class App(ttk.Window):
         self.filter_column_selector.set('')
 
     def remove_duplicates(self):
-        if self.df is None: return
+        if self.df is None:
+            messagebox.showwarning("Warning", "No data loaded.")
+            return
+
         original_rows = len(self.df)
-        df_no_duplicates = self.df.drop_duplicates()
-        rows_removed = original_rows - len(df_no_duplicates)
+
+        # Call the separated logic function
+        cleaned_df = data_logic.remove_duplicates_logic(self.df)
+
+        rows_removed = original_rows - len(cleaned_df)
+
         if rows_removed > 0:
             self.push_to_undo()
-            self.df = df_no_duplicates
+            self.df = cleaned_df
             self.redo_stack.clear()
             messagebox.showinfo("Success", f"Removed {rows_removed} duplicate row(s).")
             self.log_action(f"Removed {rows_removed} duplicate row(s).")
@@ -210,32 +217,52 @@ class App(ttk.Window):
         else:
             messagebox.showinfo("Info", "No duplicate rows found.")
 
+def remove_duplicates(self):
+    if self.df is None:
+        messagebox.showwarning("Warning", "No data loaded.")
+        return
+
+    original_rows = len(self.df)
+
+    # Call the separated logic function
+    cleaned_df = data_logic.remove_duplicates_logic(self.df)
+
+    rows_removed = original_rows - len(cleaned_df)
+
+    if rows_removed > 0:
+        self.push_to_undo()
+        self.df = cleaned_df
+        self.redo_stack.clear()
+        messagebox.showinfo("Success", f"Removed {rows_removed} duplicate row(s).")
+        self.log_action(f"Removed {rows_removed} duplicate row(s).")
+        self.update_treeview(self.df)
+        self.update_button_states()
+    else:
+        messagebox.showinfo("Info", "No duplicate rows found.")
+
+  
     def handle_missing_values(self):
         if self.df is None: return
         column = self.column_selector.get()
         action = self.action_selector.get()
         if not column or not action: return
-        self.push_to_undo()
+
         try:
-            df_copy = self.df.copy()
-            if action == "Drop Rows":
-                df_copy.dropna(subset=[column], inplace=True)
-            elif action in ["Fill with Mean", "Fill with Median"]:
-                if not pd.api.types.is_numeric_dtype(df_copy[column]):
-                    messagebox.showerror("Error", f"{action} can only be used on numeric columns.")
-                    self.undo_stack.pop()
-                    return
-                fill_value = df_copy[column].mean() if action == "Fill with Mean" else df_copy[column].median()
-                df_copy[column].fillna(fill_value, inplace=True)
-            elif action == "Fill with Mode":
-                df_copy[column].fillna(df_copy[column].mode()[0], inplace=True)
-            elif action == "Fill with Value:":
-                df_copy[column].fillna(self.custom_value_entry.get(), inplace=True)
-            self.df = df_copy
+            self.push_to_undo()
+            custom_val = self.custom_value_entry.get() if action == "Fill with Value:" else None
+
+            # Call the separated logic function
+            modified_df = data_logic.handle_missing_values_logic(self.df, column, action, custom_val)
+
+            self.df = modified_df
             self.redo_stack.clear()
             messagebox.showinfo("Success", f"Action '{action}' applied to column '{column}'.")
             self.log_action(f"Applied '{action}' to column '{column}'.")
             self.update_treeview(self.df)
+            self.update_button_states()
+        except TypeError as e:
+            messagebox.showerror("Type Error", str(e))
+            self.undo_stack.pop() # Revert the undo push
             self.update_button_states()
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
