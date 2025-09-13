@@ -217,30 +217,30 @@ class App(ttk.Window):
         else:
             messagebox.showinfo("Info", "No duplicate rows found.")
 
-def remove_duplicates(self):
-    if self.df is None:
-        messagebox.showwarning("Warning", "No data loaded.")
-        return
+    def remove_duplicates(self):
+        if self.df is None:
+            messagebox.showwarning("Warning", "No data loaded.")
+            return
 
-    original_rows = len(self.df)
+        original_rows = len(self.df)
 
-    # Call the separated logic function
-    cleaned_df = data_logic.remove_duplicates_logic(self.df)
+        # Call the separated logic function
+        cleaned_df = data_logic.remove_duplicates_logic(self.df)
 
-    rows_removed = original_rows - len(cleaned_df)
+        rows_removed = original_rows - len(cleaned_df)
 
-    if rows_removed > 0:
-        self.push_to_undo()
-        self.df = cleaned_df
-        self.redo_stack.clear()
-        messagebox.showinfo("Success", f"Removed {rows_removed} duplicate row(s).")
-        self.log_action(f"Removed {rows_removed} duplicate row(s).")
-        self.update_treeview(self.df)
-        self.update_button_states()
-    else:
-        messagebox.showinfo("Info", "No duplicate rows found.")
+        if rows_removed > 0:
+            self.push_to_undo()
+            self.df = cleaned_df
+            self.redo_stack.clear()
+            messagebox.showinfo("Success", f"Removed {rows_removed} duplicate row(s).")
+            self.log_action(f"Removed {rows_removed} duplicate row(s).")
+            self.update_treeview(self.df)
+            self.update_button_states()
+        else:
+            messagebox.showinfo("Info", "No duplicate rows found.")
 
-  
+    
     def handle_missing_values(self):
         if self.df is None: return
         column = self.column_selector.get()
