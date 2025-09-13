@@ -1,4 +1,4 @@
-# Data Wrangler's Toolkit - Now with Interactive Filtering
+# Data Wrangler's Toolkit - Now with Descriptive Statistics
 # Dependencies: ttkbootstrap, pandas, numpy, matplotlib, openpyxl
 
 import ttkbootstrap as ttk
@@ -20,7 +20,7 @@ class App(ttk.Window):
         self.redo_stack = []
 
         self.title("Data Wrangler's Toolkit")
-        self.geometry("1200x850") # Increased height for new filter panel
+        self.geometry("1200x850")
 
         main_frame = ttk.Frame(self, padding="10")
         main_frame.pack(fill=BOTH, expand=True)
@@ -41,7 +41,7 @@ class App(ttk.Window):
         
         action_frame = ttk.LabelFrame(main_frame, text="Cleaning & Actions", padding="10")
         action_frame.pack(fill=X, pady=(10, 5))
-        # ... (Action frame widgets are the same)
+        # ... (Action frame widgets are the same, with one addition)
         self.remove_duplicates_button = ttk.Button(action_frame, text="Remove Duplicates", command=self.remove_duplicates, bootstyle="danger-outline")
         self.remove_duplicates_button.pack(side=LEFT, padx=(0, 10))
         ttk.Label(action_frame, text="Handle Missing Values in:").pack(side=LEFT, padx=(10, 5))
@@ -56,34 +56,32 @@ class App(ttk.Window):
         self.apply_action_button = ttk.Button(action_frame, text="Apply", command=self.handle_missing_values, bootstyle="info")
         self.apply_action_button.pack(side=LEFT)
         ttk.Separator(action_frame, orient='vertical').pack(side=LEFT, padx=15, fill='y')
-        ttk.Label(action_frame, text="Generate Plot:").pack(side=LEFT)
+        ttk.Label(action_frame, text="Analysis:").pack(side=LEFT)
         self.plot_type_selector = ttk.Combobox(action_frame, state="readonly", width=20,
                                                values=["Histogram (Numeric)", "Bar Chart (Categorical)"])
         self.plot_type_selector.pack(side=LEFT, padx=5)
         self.plot_button = ttk.Button(action_frame, text="Generate Plot", command=self.generate_plot, bootstyle="info")
-        self.plot_button.pack(side=LEFT)
+        self.plot_button.pack(side=LEFT, padx=(0,5))
+        # --- NEW: Statistics Button ---
+        self.stats_button = ttk.Button(action_frame, text="Show Statistics", command=self.show_statistics, bootstyle="info")
+        self.stats_button.pack(side=LEFT)
         
-        # --- NEW: Filter Frame ---
         filter_frame = ttk.LabelFrame(main_frame, text="Filter Data", padding="10")
         filter_frame.pack(fill=X, pady=(5, 10))
-        
+        # ... (Filter frame widgets are the same)
         ttk.Label(filter_frame, text="Column:").pack(side=LEFT, padx=(0, 5))
         self.filter_column_selector = ttk.Combobox(filter_frame, state="readonly", width=15)
         self.filter_column_selector.pack(side=LEFT, padx=(0, 10))
-
         ttk.Label(filter_frame, text="Operator:").pack(side=LEFT, padx=(0, 5))
         self.operator_selector = ttk.Combobox(filter_frame, state="readonly", width=10,
                                               values=["==", "!=", ">", "<", ">=", "<=", "contains", "is null", "is not null"])
         self.operator_selector.pack(side=LEFT, padx=(0, 10))
         self.operator_selector.bind("<<ComboboxSelected>>", self.toggle_filter_value_entry)
-
         ttk.Label(filter_frame, text="Value:").pack(side=LEFT, padx=(0, 5))
         self.filter_value_entry = ttk.Entry(filter_frame, width=20)
         self.filter_value_entry.pack(side=LEFT, padx=(0, 10))
-        
         self.apply_filter_button = ttk.Button(filter_frame, text="Apply Filter", command=self.apply_filter, bootstyle="primary")
         self.apply_filter_button.pack(side=LEFT)
-
 
         bottom_pane = ttk.PanedWindow(main_frame, orient=HORIZONTAL)
         bottom_pane.pack(fill=BOTH, expand=True)
@@ -106,88 +104,40 @@ class App(ttk.Window):
         self.history_text.config(yscrollcommand=history_sb.set)
         bottom_pane.add(history_frame, weight=1)
 
-    # --- NEW: Filter Functions ---
-    def apply_filter(self):
-        if self.df is None: return
-        
-        column = self.filter_column_selector.get()
-        operator = self.operator_selector.get()
-        value = self.filter_value_entry.get()
-
-        if not column or not operator:
-            messagebox.showwarning("Input Error", "Please select a column and an operator.")
+    # --- NEW: Statistics Function ---
+    def show_statistics(self):
+        if self.df is None:
+            messagebox.showwarning("Warning", "No data loaded.")
             return
-
-        # For operators that don't need a value
-        if operator not in ["is null", "is not null"] and not value:
-            messagebox.showwarning("Input Error", "Please provide a value for the filter.")
-            return
-
-        self.push_to_undo()
         
         try:
-            original_col = self.df[column]
-            filtered_df = None
+            stats_window = ttk.Toplevel(self)
+            stats_window.title("Descriptive Statistics")
+            stats_window.geometry("800x400")
 
-            if operator in [">", "<", ">=", "<="]:
-                # Attempt to convert to numeric for comparison
-                value = pd.to_numeric(value)
-                col_numeric = pd.to_numeric(original_col, errors='coerce')
-                if operator == ">": filtered_df = self.df[col_numeric > value]
-                elif operator == "<": filtered_df = self.df[col_numeric < value]
-                elif operator == ">=": filtered_df = self.df[col_numeric >= value]
-                elif operator == "<=": filtered_df = self.df[col_numeric <= value]
-            elif operator == "contains":
-                filtered_df = self.df[original_col.astype(str).str.contains(value, case=False, na=False)]
-            elif operator == "is null":
-                filtered_df = self.df[original_col.isnull()]
-            elif operator == "is not null":
-                filtered_df = self.df[original_col.notnull()]
-            else: # Handles "==" and "!="
-                # Try to convert value to the column's type for accurate comparison
-                try:
-                    converted_value = original_col.dtype.type(value)
-                    if operator == "==": filtered_df = self.df[original_col == converted_value]
-                    elif operator == "!=": filtered_df = self.df[original_col != converted_value]
-                except (ValueError, TypeError):
-                    # Fallback to string comparison if conversion fails
-                    if operator == "==": filtered_df = self.df[original_col.astype(str) == value]
-                    elif operator == "!=": filtered_df = self.df[original_col.astype(str) != value]
-
-            self.df = filtered_df
-            self.redo_stack.clear()
-            self.log_action(f"Filtered column '{column}' where {operator} '{value}'.")
-            self.update_treeview(self.df)
-            self.update_button_states()
-
-        except Exception as e:
-            messagebox.showerror("Filter Error", f"An error occurred during filtering: {e}")
-            self.undo_stack.pop() # Revert the undo push
-            self.update_button_states()
-    
-    def toggle_filter_value_entry(self, event=None):
-        if self.operator_selector.get() in ["is null", "is not null"]:
-            self.filter_value_entry.config(state="disabled")
-        else:
-            self.filter_value_entry.config(state="normal")
+            # Get statistics for all columns (numeric and object)
+            stats_df = self.df.describe(include='all').round(2)
+            stats_df.insert(0, 'Statistic', stats_df.index)
             
-    # --- Modified and existing functions ---
-    def update_treeview(self, df):
-        # ... (code is the same, but now updates filter column selector too)
-        self.tree.delete(*self.tree.get_children())
-        self.tree["column"] = list(df.columns)
-        self.tree["show"] = "headings"
-        for column in self.tree["column"]:
-            self.tree.heading(column, text=column)
-            self.tree.column(column, width=100)
-        df_display = df.replace(np.nan, 'NULL')
-        for index, row in df_display.iterrows():
-            self.tree.insert("", "end", values=list(row))
-        self.column_selector['values'] = list(df.columns)
-        self.column_selector.set('')
-        self.filter_column_selector['values'] = list(df.columns)
-        self.filter_column_selector.set('')
+            # Create a Treeview in the new window
+            stats_tree = ttk.Treeview(stats_window, show='headings', bootstyle="primary")
+            stats_tree.pack(fill=BOTH, expand=True, padx=10, pady=10)
 
+            # Setup columns
+            stats_tree["column"] = list(stats_df.columns)
+            for column in stats_tree["column"]:
+                stats_tree.heading(column, text=column)
+                stats_tree.column(column, width=100, anchor=CENTER)
+
+            # Insert data, replacing NaN with '---' for clarity
+            df_display = stats_df.replace(np.nan, '---')
+            for index, row in df_display.iterrows():
+                stats_tree.insert("", "end", values=list(row))
+
+            self.log_action("Generated descriptive statistics.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not generate statistics: {e}")
+            
     # ... (All other functions from previous step remain here unchanged) ...
     def push_to_undo(self):
         if self.df is not None:
@@ -228,6 +178,21 @@ class App(ttk.Window):
             self.update_button_states()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to read file: {e}")
+
+    def update_treeview(self, df):
+        self.tree.delete(*self.tree.get_children())
+        self.tree["column"] = list(df.columns)
+        self.tree["show"] = "headings"
+        for column in self.tree["column"]:
+            self.tree.heading(column, text=column)
+            self.tree.column(column, width=100)
+        df_display = df.replace(np.nan, 'NULL')
+        for index, row in df_display.iterrows():
+            self.tree.insert("", "end", values=list(row))
+        self.column_selector['values'] = list(df.columns)
+        self.column_selector.set('')
+        self.filter_column_selector['values'] = list(df.columns)
+        self.filter_column_selector.set('')
 
     def remove_duplicates(self):
         if self.df is None: return
@@ -277,6 +242,52 @@ class App(ttk.Window):
             self.undo_stack.pop()
             self.update_button_states()
             
+    def apply_filter(self):
+        if self.df is None: return
+        column = self.filter_column_selector.get()
+        operator = self.operator_selector.get()
+        value = self.filter_value_entry.get()
+        if not column or not operator:
+            messagebox.showwarning("Input Error", "Please select a column and an operator.")
+            return
+        if operator not in ["is null", "is not null"] and not value:
+            messagebox.showwarning("Input Error", "Please provide a value for the filter.")
+            return
+        self.push_to_undo()
+        try:
+            original_col = self.df[column]
+            filtered_df = None
+            if operator in [">", "<", ">=", "<="]:
+                value = pd.to_numeric(value)
+                col_numeric = pd.to_numeric(original_col, errors='coerce')
+                if operator == ">": filtered_df = self.df[col_numeric > value]
+                elif operator == "<": filtered_df = self.df[col_numeric < value]
+                elif operator == ">=": filtered_df = self.df[col_numeric >= value]
+                elif operator == "<=": filtered_df = self.df[col_numeric <= value]
+            elif operator == "contains":
+                filtered_df = self.df[original_col.astype(str).str.contains(value, case=False, na=False)]
+            elif operator == "is null":
+                filtered_df = self.df[original_col.isnull()]
+            elif operator == "is not null":
+                filtered_df = self.df[original_col.notnull()]
+            else:
+                try:
+                    converted_value = original_col.dtype.type(value)
+                    if operator == "==": filtered_df = self.df[original_col == converted_value]
+                    elif operator == "!=": filtered_df = self.df[original_col != converted_value]
+                except (ValueError, TypeError):
+                    if operator == "==": filtered_df = self.df[original_col.astype(str) == value]
+                    elif operator == "!=": filtered_df = self.df[original_col.astype(str) != value]
+            self.df = filtered_df
+            self.redo_stack.clear()
+            self.log_action(f"Filtered column '{column}' where {operator} '{value}'.")
+            self.update_treeview(self.df)
+            self.update_button_states()
+        except Exception as e:
+            messagebox.showerror("Filter Error", f"An error occurred during filtering: {e}")
+            self.undo_stack.pop()
+            self.update_button_states()
+            
     def log_action(self, message):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         log_message = f"[{timestamp}] {message}"
@@ -295,6 +306,12 @@ class App(ttk.Window):
             self.custom_value_entry.config(state="normal")
         else:
             self.custom_value_entry.config(state="disabled")
+
+    def toggle_filter_value_entry(self, event=None):
+        if self.operator_selector.get() in ["is null", "is not null"]:
+            self.filter_value_entry.config(state="disabled")
+        else:
+            self.filter_value_entry.config(state="normal")
             
     def export_to_csv(self):
         if self.df is None: return
